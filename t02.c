@@ -1,44 +1,44 @@
 #include <stdio.h>
+#define TAMANHO_LONG sizeof(long int)  // tamanho necessario para armazenar um endereco literal
 
 typedef int (*funcp)(int x);
 
-// union para pegar os bytes do offset
-typedef union OffsetUnion
+// union para pegar os bytes do endereco real
+typedef union enderecoDiretoUnion
 {
-    int offset;
-    unsigned char c [sizeof(int)];
-} offsetUnion;
+    long int endereco;
+    unsigned char c [TAMANHO_LONG];
+
+} endDiretoUnion;
 
 int add(int x)
 {
     return x + 1;
 }
 
+
 int main()
 {
-    // vetor com codigo de maquina da funcao foo2
-    unsigned char codigo[] = {0x55, 0x48, 0x89, 0xe5, 0xe8, 0x00, 0x00, 0x00, 0x00, 0xc9, 0xc3};
+    // vetor com codigo de maquina da funcao foo2 usando call direto
+    unsigned char codigo[] = {
+   		0x55,                           // push   %rbp
+   		0x48, 0x89, 0xe5,               // mov    %rsp,%rbp
+   		0x48, 0xb8,                     // movabs %rax, endereço (8 bytes a seguir)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // endereço (8 bytes)
+        0xff, 0xd0,                     // call   *%rax
+   		0xc9,                           // leaveq
+   		0xc3                            // retq
+	};
 
-    offsetUnion u;
+    endDiretoUnion u;
 
-    // endereço de add
-    unsigned char *ptr_add = (unsigned char *)&add;
-    printf("%p\n", ptr_add);
-    // endereco de proxima instrucao
-    unsigned char *ptr_prox = &(codigo[9]);
-    printf("%p\n", ptr_prox);
+    // salva endereço real de add
+    u.endereco = (long int)add;
 
-    // calculo de offset = add - proxima instrucao
-    u.offset = (int)(ptr_add - ptr_prox);
-
-    // colocando o offset em little endian no codigo
-    for (int i = 0; i < sizeof(int); i++)
-        codigo[5+i] = u.c[i];
-
-    for (int i = 0; i < sizeof(codigo); i++)
-        printf("%0x\n", codigo[i]);
+    // colocando endereco real de add no codigo no formato little endian
+    for (int i = 0; i < sizeof(long int); i++)
+        codigo[6+i] = u.c[i];
     
-
     // f armazena o endereco da funcao
     funcp f = (funcp)codigo;
 
